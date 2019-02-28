@@ -50,19 +50,19 @@ class EmlParserAnalyzer(Analyzer):
             artifacts.append({'type': 'ip', 'value': ip, 'message': 'Received header ioc'})
 
         for dom in re.findall(r_dom, header_rcvd):
-            artifacts.append({'type': 'domain', 'value': dom, 'message': 'Received header ioc'})
+            artifacts.append({'type': 'domain', 'value': dom[0], 'message': 'Received header ioc'})
 
         for dom in re.findall(r_dom, header_from):
-            artifacts.append({'type': 'domain', 'value': dom, 'message': 'From header ioc'})
+            artifacts.append({'type': 'domain', 'value': dom[0], 'message': 'From header ioc'})
 
-        for dom in re.findall(r_email, header_from):
-            artifacts.append({'type': 'email', 'value': dom, 'message': 'From header ioc'})
+        for em in re.findall(r_email, header_from):
+            artifacts.append({'type': 'email', 'value': em, 'message': 'From header ioc'})
 
         for url in re.findall(r_url, body):
-            artifacts.append({'type': 'url', 'value': url, 'message': 'Body ioc'})
+            artifacts.append({'type': 'url', 'value': url[0], 'message': 'Body ioc'})
 
         for dom in re.findall(r_dom, body):
-            artifacts.append({'type': 'domain', 'value': dom, 'message': 'Body ioc'})
+            artifacts.append({'type': 'domain', 'value': dom[0], 'message': 'Body ioc'})
 
         for a in attachments:
             if a.get('sha256'):
