@@ -7,6 +7,7 @@ import magic
 import binascii
 import hashlib
 import base64
+import re
 from pprint import pprint
 
 class EmlParserAnalyzer(Analyzer):
@@ -29,6 +30,53 @@ class EmlParserAnalyzer(Analyzer):
                 self.unexpectedError(e)
         else:
             self.notSupported()
+
+    def artifacts(self, raw):
+        r_privip = '^(10\.|192\.168\.|172\.[123][0-9])'
+        r_ip = '(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)'
+        r_dom = '[\s\>/](([a-zA-Z0-9\-]+\.)+[a-z]{2,8})[\s\:\</\?\[]'
+        r_url = '(((meows?|h[Xxt]{2}ps?)://)?((([a-zA-Z0-9\-]+\[?\.\]?)+[a-z]{2,8})|(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\[?\.\]?){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?))/[^\s\<"]+)'
+        r_email = '([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)'
+
+        artifacts = []
+        body = raw.get('body', '')
+        attachments = raw.get('attachments', [])
+        header_rcvd = raw.get('headers', {}).get('Received', '')
+        header_from = raw.get('headers', {}).get('From', '')
+
+        for ip in re.findall(r_ip, header_rcvd):
+            if re.match(r_privip, ip):
+                continue
+            artifacts.append({'type': 'ip', 'value': ip, 'message': 'Received header ioc'})
+
+        for dom in re.findall(r_dom, header_rcvd):
+            artifacts.append({'type': 'domain', 'value': dom, 'message': 'Received header ioc'})
+
+        for dom in re.findall(r_dom, header_from):
+            artifacts.append({'type': 'domain', 'value': dom, 'message': 'From header ioc'})
+
+        for dom in re.findall(r_email, header_from):
+            artifacts.append({'type': 'email', 'value': dom, 'message': 'From header ioc'})
+
+        for url in re.findall(r_url, body):
+            artifacts.append({'type': 'url', 'value': url, 'message': 'Body ioc'})
+
+        for dom in re.findall(r_dom, body):
+            artifacts.append({'type': 'domain', 'value': dom, 'message': 'Body ioc'})
+
+        for a in attachments:
+            if a.get('sha256'):
+                artifacts.append({'type': 'hash', 'value': a['sha256'], 'message': 'Attachment ioc'})
+
+            if a.get('md5'):
+                artifacts.append({'type': 'hash', 'value': a['md5'], 'message': 'Attachment ioc'})
+
+            if a.get('filename'):
+                artifacts.append({'type': 'filename', 'value': a['filename'], 'message': 'Attachment ioc'})
+
+        #dedup
+        artifacts = [dict(t) for t in {tuple(d.items()) for d in artifacts}]
+        return artifacts
 
     def summary(self, raw):
         taxonomies = []
